@@ -12415,7 +12415,7 @@ Default GPU Device: /gpu:0
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[38]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">decoding_layer</span><span class="p">(</span><span class="n">dec_embed_input</span><span class="p">,</span> <span class="n">dec_embeddings</span><span class="p">,</span> <span class="n">encoder_state</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">,</span> <span class="n">rnn_size</span><span class="p">,</span>
@@ -12434,7 +12434,30 @@ Default GPU Device: /gpu:0
 <span class="sd">    :return: Tuple of (Training Logits, Inference Logits)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># TODO: Implement Function</span>
-    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="c1"># create RNN cell</span>
+    <span class="n">rnn_cell</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">rnn</span><span class="o">.</span><span class="n">MultiRNNCell</span><span class="p">([</span><span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">rnn</span><span class="o">.</span><span class="n">BasicLSTMCell</span><span class="p">(</span><span class="n">rnn_size</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">)])</span>
+    <span class="n">rnn_cell</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">rnn</span><span class="o">.</span><span class="n">DropoutWrapper</span><span class="p">(</span><span class="n">rnn_cell</span><span class="p">,</span><span class="n">keep_prob</span><span class="p">)</span> 
+    
+    <span class="c1">#output_fn</span>
+    <span class="n">output_fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">fully_connected</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="n">decoding_scope</span><span class="p">)</span>
+    
+    <span class="c1">#</span>
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">variable_scope</span><span class="p">(</span><span class="s1">&#39;decoding_layer&#39;</span><span class="p">,</span> <span class="n">reuse</span><span class="o">=</span><span class="kc">None</span> <span class="p">)</span> <span class="k">as</span> <span class="n">decoding_scope</span><span class="p">:</span>
+         <span class="n">training_logits</span> <span class="o">=</span> <span class="n">decoding_layer_train</span><span class="p">(</span><span class="n">encoder_state</span><span class="p">,</span><span class="n">rnn_cell</span><span class="p">,</span><span class="n">dec_embed_input</span><span class="p">,</span><span class="n">sequence_length</span><span class="p">,</span>
+                                           <span class="n">decoding_scope</span><span class="p">,</span><span class="n">output_fn</span><span class="p">,</span><span class="n">keep_prob</span><span class="p">)</span>
+    
+    <span class="c1">#calculate max length</span>
+    
+    <span class="n">max_len_seq</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">sentence</span><span class="p">)</span> <span class="k">for</span> <span class="n">sentence</span> <span class="ow">in</span> <span class="n">source_int_text</span><span class="p">])</span> 
+    
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">variable_scope</span><span class="p">(</span><span class="s1">&#39;decoding_layer&#39;</span><span class="p">,</span> <span class="n">reuse</span><span class="o">=</span><span class="kc">True</span> <span class="p">)</span> <span class="k">as</span> <span class="n">decoding_scope</span><span class="p">:</span>
+         <span class="n">inference_logits</span> <span class="o">=</span> <span class="n">decoding_layer_infer</span><span class="p">(</span><span class="n">encoder_state</span><span class="p">,</span><span class="n">rnn_cell</span><span class="p">,</span><span class="n">dec_embeddings</span><span class="p">,</span>
+                                            <span class="n">target_vocab_to_int</span><span class="p">[</span><span class="s1">&#39;&lt;GO&gt;&#39;</span><span class="p">],</span><span class="n">target_vocab_to_int</span><span class="p">[</span><span class="s1">&#39;&lt;EOS&gt;&#39;</span><span class="p">],</span>
+                                            <span class="n">max_len_seq</span><span class="p">,</span><span class="n">vocab_size</span><span class="p">,</span> <span class="n">decoding_scope</span><span class="p">,</span> <span class="n">output_fn</span><span class="p">,</span> <span class="n">keep_prob</span><span class="p">)</span>
+    
+    
+    
+    <span class="k">return</span> <span class="n">training_logits</span><span class="p">,</span> <span class="n">inference_logits</span>
 
 
 <span class="sd">&quot;&quot;&quot;</span>
@@ -12444,6 +12467,24 @@ Default GPU Device: /gpu:0
 </pre></div>
 
 </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+<div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Tests Passed
+</pre>
+</div>
+</div>
+
 </div>
 </div>
 
